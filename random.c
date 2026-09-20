@@ -52,7 +52,7 @@ struct immich_random_album_picture {
   // has albums with pictures" from the old one with "none of them is in the
   // rotation" from the new one reads as "your filter matches nothing", which
   // would blame a filter for an album list that just came back empty.
-  _Atomic enum immich_album_selection selection;
+  atomic_int selection;   // An enum immich_album_selection
   atomic_size_t n_albums; // Albums the server returned
   atomic_size_t n_kept;   // ...of those, how many are in the rotation
 
@@ -230,7 +230,7 @@ static void rebuild_order(struct immich_random_album_picture *r) {
   // sees this rotation's verdict cannot then read counts from before it.
   atomic_store(&r->n_albums, r->albums.count);
   atomic_store(&r->n_kept, r->order_len);
-  atomic_store(&r->selection, sel);
+  atomic_store(&r->selection, (int)sel);
 }
 
 // Picks up a filter set from another thread. Must be called with lock held.
@@ -486,7 +486,8 @@ immich_random_album_picture_status(struct immich_random_album_picture *r,
   // Loaded before the counts, so that a verdict other than NONE_KNOWN
   // guarantees the counts below are from that rotation or a later one, never
   // from before it
-  enum immich_album_selection sel = atomic_load(&r->selection);
+  enum immich_album_selection sel =
+      (enum immich_album_selection)atomic_load(&r->selection);
   if (total) {
     *total = atomic_load(&r->n_albums);
   }
