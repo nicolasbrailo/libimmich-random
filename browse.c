@@ -1,5 +1,5 @@
-#include "immich.h"
 #include "client.h"
+#include "immich.h"
 
 #include <json-c/json.h>
 #include <stdio.h>
@@ -66,6 +66,10 @@ int immich_list_albums(struct immich_client *c, struct immich_album_list *out) {
     a->id = dup_field(album, "id", &ok);
     a->name = dup_field(album, "albumName", &ok);
     a->asset_count = json_object_get_int(field(album, "assetCount"));
+    // Documented as "UTC representation of (local) start date". Both are
+    // absent for an album with no assets, and dup_field turns that into "".
+    a->start_date = dup_field(album, "startDate", &ok);
+    a->end_date = dup_field(album, "endDate", &ok);
     if (!ok) {
       goto out;
     }
@@ -84,6 +88,8 @@ void immich_album_list_free(struct immich_album_list *list) {
   for (size_t i = 0; i < list->count; i++) {
     free(list->items[i].id);
     free(list->items[i].name);
+    free(list->items[i].start_date);
+    free(list->items[i].end_date);
   }
   free(list->items);
   list->items = NULL;
@@ -216,8 +222,7 @@ static int collect_people(json_object *people,
   return 0;
 }
 
-int immich_get_picture_metadata(struct immich_client *c,
-                                const char *picture_id,
+int immich_get_picture_metadata(struct immich_client *c, const char *picture_id,
                                 struct immich_picture_info *out) {
   memset(out, 0, sizeof(*out));
 
